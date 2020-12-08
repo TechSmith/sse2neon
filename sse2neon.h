@@ -1897,19 +1897,50 @@ FORCE_INLINE __m128i _mm_srai_epi16(__m128i a, int imm)
 //   r7 := a7 << count
 //
 // https://msdn.microsoft.com/en-us/library/es73bcsy(v=vs.90).aspx
-#define _mm_slli_epi16(a, imm)                                   \
-    __extension__({                                              \
-        __m128i ret;                                             \
-        if ((imm) <= 0) {                                        \
-            ret = a;                                             \
-        } else if ((imm) > 15) {                                 \
-            ret = _mm_setzero_si128();                           \
-        } else {                                                 \
-            ret = vreinterpretq_m128i_s16(                       \
-                vshlq_n_s16(vreinterpretq_s16_m128i(a), (imm))); \
-        }                                                        \
-        ret;                                                     \
-    })
+// TECHSMITH-modified!
+// Needed this function to be able to handle a non-constant imm, since that's
+// how we were using it
+// 
+// This is the original implementation
+//#define _mm_slli_epi16(a, imm)                                   \
+//    __extension__({                                              \
+//        __m128i ret;                                             \
+//        if ((imm) <= 0) {                                        \
+//            ret = a;                                             \
+//        } else if ((imm) > 15) {                                 \
+//            ret = _mm_setzero_si128();                           \
+//        } else {                                                 \
+//            ret = vreinterpretq_m128i_s16(                       \
+//                vshlq_n_s16(vreinterpretq_s16_m128i(a), (imm))); \
+//        }                                                        \
+//        ret;                                                     \
+//    })
+FORCE_INLINE __m128i _mm_slli_epi16( __m128i a, int imm)
+{
+    if (imm <= 0) /* TODO: add constant range macro: [0, 255] */
+        return a;
+    if (imm > 15) /* TODO: add unlikely macro */
+        return _mm_setzero_si128();
+    switch ( imm )
+    {
+        case 1: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (1)));
+        case 2: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (2)));
+        case 3: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (3)));
+        case 4: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (4)));
+        case 5: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (5)));
+        case 6: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (6)));
+        case 7: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (7)));
+        case 8: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (8)));
+        case 9: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (9)));
+        case 10: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (10)));
+        case 11: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (11)));
+        case 12: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (12)));
+        case 13: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (13)));
+        case 14: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (14)));
+        case 15: return vreinterpretq_m128i_s16( vshlq_n_s16(vreinterpretq_s16_m128i(a), (15)));
+    }
+    return a;
+}
 
 // Shifts the 4 signed or unsigned 32-bit integers in a left by count bits while
 // shifting in zeros. :
@@ -6030,6 +6061,148 @@ FORCE_INLINE uint64_t _mm_crc32_u64(uint64_t crc, uint64_t v)
     crc = _mm_crc32_u32((uint32_t)(crc), (v >> 32) & 0xffffffff);
 #endif
     return crc;
+}
+
+////////////////////////
+// TECHSMITH ADDITIONS
+//
+//  many of these are just modified from the 128-bit versions
+
+
+FORCE_INLINE __m128i _mm_mulhi_epu16 (__m128i a, __m128i b)
+{
+    uint16x8_t aa = vreinterpretq_s16_m128i( a );
+    uint16x8_t bb = vreinterpretq_s16_m128i( b );
+    uint16x8_t ret;
+    ret[0] = (aa[0] * bb[0]) >> 16;
+    ret[1] = (aa[1] * bb[1]) >> 16;
+    ret[2] = (aa[2] * bb[2]) >> 16;
+    ret[3] = (aa[3] * bb[3]) >> 16;
+    ret[4] = (aa[4] * bb[4]) >> 16;
+    ret[5] = (aa[5] * bb[5]) >> 16;
+    ret[6] = (aa[6] * bb[6]) >> 16;
+    ret[7] = (aa[7] * bb[7]) >> 16;
+    return ret;
+}
+
+FORCE_INLINE __m64 _mm_set1_pi16(short a)
+{
+   return vreinterpret_s16_m64( vdup_n_s16( a ) );
+}
+
+FORCE_INLINE __m64 _mm_shuffle_pi16 (__m64 a, int imm8)
+{
+    int16x4_t b = a;
+    return int16x4_t { b[(imm8)&3], b[(imm8>>2)&3], b[(imm8>>4)&3], b[(imm8>>6)&3] };
+}
+
+FORCE_INLINE __m64 _mm_unpacklo_pi32(__m64 a, __m64 b)
+{
+    __m64 ret = vzip_s32( a, b ).val[0]; // TODO: only use half of __m1/__m2
+    return ret;
+}
+
+FORCE_INLINE __m64 _mm_unpacklo_pi16(__m64 a, __m64 b)
+{
+    __m64 ret = vzip_s16( a, b ).val[0]; // TODO: only use half of __m1/__m2
+    return ret;
+}
+
+FORCE_INLINE __m64 _mm_unpackhi_pi32(__m64 a, __m64 b)
+{
+    __m64 ret = vzip_s32( a, b ).val[1]; // TODO: only use half of __m1/__m2
+    return ret;
+}
+
+FORCE_INLINE __m64 _mm_unpackhi_pi16(__m64 a, __m64 b)
+{
+    __m64 ret = vzip_s16( a, b ).val[1]; // TODO: only use half of __m1/__m2
+    return ret;
+}
+
+FORCE_INLINE __m64 _mm_sub_pi16(__m64 a, __m64 b)
+{
+    return vreinterpret_m64_s16(a) - vreinterpret_m64_s16(b);
+}
+
+// see also _mm_mulhi_pu16
+FORCE_INLINE __m64 _mm_mulhi_pi16(__m64 a, __m64 b)
+{
+    return vreinterpret_m64_s16(vshrn_n_u32(
+        vmull_s16(vreinterpret_s16_m64(a), vreinterpret_s16_m64(b)), 16));
+}
+
+FORCE_INLINE __m64 _mm_setzero_si64(void)
+{
+    return vreinterpret_s32_m64(vdup_n_u32(0));
+}
+
+#define _mm_srli_pi16(a, imm)                                             \
+    __extension__({                                                        \
+        __m64 ret;                                                       \
+        if ((imm) == 0) {                                                  \
+            ret = a;                                                       \
+        } else if (0 < (imm) && (imm) < 16) {                              \
+            ret = vshl_u16(vreinterpret_u16_m64(a), vdup_n_s16(-imm)); \
+        } else {                                                           \
+            ret = _mm_setzero_si64();                                     \
+        }                                                                  \
+        ret;                                                               \
+    })
+
+FORCE_INLINE __m64 _mm_adds_pi16(__m64 a, __m64 b)
+{
+    return vreinterpret_m64_s16(
+        vqadd_s16(vreinterpret_s16_m64(a), vreinterpret_s16_m64(b)));
+}
+
+FORCE_INLINE __m64 _mm_subs_pu16(__m64 a, __m64 b)
+{
+    return vreinterpret_m64_s16(
+        vqsub_u16(vreinterpret_u16_m64(a), vreinterpret_u16_m64(b)));
+}
+
+FORCE_INLINE __m64 _mm_subs_pi16(__m64 a, __m64 b)
+{
+    return vreinterpret_m64_s16(
+        vqsub_s16(vreinterpret_s16_m64(a), vreinterpret_s16_m64(b)));
+}
+
+FORCE_INLINE __m64 _mm_slli_pi16(__m64 a, int imm)
+{
+    if (imm <= 0) /* TODO: add constant range macro: [0, 255] */
+        return a;
+    if (imm > 15) /* TODO: add unlikely macro */
+        return _mm_setzero_si64();
+    switch ( imm )
+    {
+        case  1: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), ( 1)));
+        case  2: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), ( 2)));
+        case  3: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), ( 3)));
+        case  4: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), ( 4)));
+        case  5: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), ( 5)));
+        case  6: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), ( 6)));
+        case  7: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), ( 7)));
+        case  8: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), ( 8)));
+        case  9: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), ( 9)));
+        case 10: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), (10)));
+        case 11: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), (11)));
+        case 12: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), (12)));
+        case 13: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), (13)));
+        case 14: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), (14)));
+        case 15: return vreinterpret_m64_s16( vshl_n_s16(vreinterpret_s16_m64(a), (15)));
+    }
+    return a;
+}
+
+FORCE_INLINE __m64 _mm_or_si64(__m64 a, __m64 b)
+{
+    return vreinterpret_m64_s32(
+        vorr_s64(vreinterpret_s64_m64(a), vreinterpret_s64_m64(b)));
+}
+
+FORCE_INLINE void _mm_empty(void)
+{
 }
 
 #if defined(__GNUC__) || defined(__clang__)
