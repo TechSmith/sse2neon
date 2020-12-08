@@ -6093,7 +6093,8 @@ FORCE_INLINE __m64 _mm_set1_pi16(short a)
 FORCE_INLINE __m64 _mm_shuffle_pi16 (__m64 a, int imm8)
 {
     int16x4_t b = a;
-    return int16x4_t { b[(imm8)&3], b[(imm8>>2)&3], b[(imm8>>4)&3], b[(imm8>>6)&3] };
+    int16x4_t ret = { b[(imm8)&3], b[(imm8>>2)&3], b[(imm8>>4)&3], b[(imm8>>6)&3] };
+    return ret;
 }
 
 FORCE_INLINE __m64 _mm_unpacklo_pi32(__m64 a, __m64 b)
